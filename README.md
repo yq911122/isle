@@ -1,10 +1,3 @@
-.. -*- mode: rst -*-
-
-|Python27|
-
-.. |Python27| image:: https://img.shields.io/badge/python-2.7-blue.svg
-.. _Python27: https://badge.fury.io/py/scikit-learn
-
 isle
 ============
 
