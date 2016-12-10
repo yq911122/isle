@@ -6,9 +6,6 @@ isle is a Python module that implements ISLE (Importance Sampled Learning Ensemb
 Installation
 ------------
 
-Dependencies
-~~~~~~~~~~~~
-
 isle requires Python 2.7 or Python 3, [Scikit-learn](https://github.com/scikit-learn/scikit-learn), [Numpy](http://www.numpy.org/) and [Scipy](https://www.scipy.org/)
 
 User installation
