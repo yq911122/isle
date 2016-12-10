@@ -11,7 +11,6 @@ from sklearn.utils.fixes import bincount
 from sklearn.utils import check_random_state, check_array, check_X_y
 from sklearn.utils.multiclass import check_classification_targets
 
-from sklearn.preprocessing import LabelEncoder
 from sklearn.tree._tree import DTYPE, DOUBLE
 
 
@@ -275,15 +274,11 @@ class ISLEBaseEnsembleRegressor(ISLEBaseEnsemble):
         for i in xrange(self.n_estimators):
             y_matrix[:,i] = self._tree_predict(i, X)
 
-        # self.coef_ = np.ones((self.n_estimators,))
         self.post_model.set_params(alpha=self.alpha)
         self.post_model.fit(y_matrix, y)
         self.coef_ = self.post_model.coef_
         self.coef_[np.abs(self.coef_) < EPS] = 0.0
         self.intercept_ = self.post_model.intercept_
-        # print self.coef_
-        # self.coef_ = np.ones((self.n_estimators, ))
-        # self.intercept_ = self.init_.predict(X).flatten()
 
         return self
 
@@ -339,7 +334,6 @@ class ISLEBaseEnsembleClassifier(ISLEBaseEnsemble):
         self.coef_ = np.empty((self.n_estimators, self.n_classes_))
         self.intercept_ = np.empty((self.n_classes_,))
         
-        # self.coef_ = np.ones((self.n_estimators,))
         self.post_model.set_params(alpha=self.alpha)
         for k in xrange(self.n_classes_):
             if self.n_classes_ > 2:
@@ -349,10 +343,7 @@ class ISLEBaseEnsembleClassifier(ISLEBaseEnsemble):
             self.intercept_[k] = self.post_model.intercept_
 
         self.coef_[np.abs(self.coef_) < EPS] = 0.0
-        # self.coef_ = np.ones((self.n_estimators, self.n_classes_))
-        # self.intercept_ = 0.
-        print self.coef_
-        print self.intercept_
+
         return self
 
     def predict(self, X):
@@ -366,7 +357,6 @@ class ISLEBaseEnsembleClassifier(ISLEBaseEnsemble):
         for i in xrange(self.n_estimators):
             proba += self.coef_[i] * self._tree_predict_proba(i, X)
         proba += self.intercept_
-        # print proba[:5]
         return proba
 
     def _validate_y_class(self, y):
@@ -374,10 +364,6 @@ class ISLEBaseEnsembleClassifier(ISLEBaseEnsemble):
         self.classes_, y = np.unique(y, return_inverse=True)
         self.n_classes_ = len(self.classes_)
         return y
-
-        
-    # def _tree_predict(self, estimator_id, X):
-    #     return self.estimators_[estimator_id].predict(X)
 
     def _tree_predict_proba(self, estimator_id, X):
         return self.estimators_[estimator_id].predict_proba(X) * self.learning_rate
