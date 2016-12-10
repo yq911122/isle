@@ -9,18 +9,13 @@ Installation
 Dependencies
 ~~~~~~~~~~~~
 
-isle requires:
-
-- Python (>= 2.7)
-- Scikit-learn (>= 0.18)
-- NumPy (>= 1.6.1)
-- SciPy (>= 0.9)
+isle requires Python 2.7 or Python 3, [Scikit-learn](https://github.com/scikit-learn/scikit-learn), [Numpy](http://www.numpy.org/) and [Scipy](https://www.scipy.org/)
 
 User installation
 ~~~~~~~~~~~~~~~~~
 
-If you already have a working installation of numpy and scipy,
-the easiest way to install scikit-learn is using ``pip`` ::
+If you already have a working installation of numpy, scipy and Scikit-learn,
+the easiest way to install is:
 ```bash
     git clone git://github.com/yq911122/isle.git
-```bash
+```
