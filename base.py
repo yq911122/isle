@@ -13,8 +13,6 @@ from sklearn.utils.multiclass import check_classification_targets
 
 from sklearn.tree._tree import DTYPE, DOUBLE
 
-
-
 def _generate_sample_indices(random_state, n_samples):
     """Private function used to _parallel_build_trees function."""
     random_instance = check_random_state(random_state)
@@ -55,14 +53,47 @@ def _set_random_states(estimator, random_state=None):
         estimator.set_params(**to_set)
 
 class PertubationSampler(object):
-    """docstring for PertubationSampler"""
+    """class that perfroms perturbation sampling.
+
+    For more details about perturbation sampling, check Friedman(2003)"""
     def __init__(self):
         super(PertubationSampler, self).__init__()
 
     def _random_function(self, random_state):
+        """private function that generates a random function. This function is 
+        usually added on the loss function in order to pertubate sampling.
+
+        Parameters
+        ----------
+        random_state: numpy.random.RandomState
+
+        Returns
+        -------
+        random_func: random_state.rand
+
+        """
         return random_state.rand
     
     def pertube_distribution_weight(self, random_state, n_samples, multipler):
+        """generate sample weights [w_m(z)]^η so as to modify the sample distribution.
+
+                q_m(z) = q(z) * [w_m(z)]^η
+        
+        Parameters
+        ----------
+        random_state: numpy.random.RandomState
+
+        n_samples: int. 
+                   Number of sample weights that will be generated
+        
+        multipler: float. 
+                   η in the equation
+
+        Returns
+        -------
+        sample weight: numpy array, shape = [n_samples]
+
+        """
         curr_sample_weight = np.ones((n_samples,), dtype=np.float64)
         indices = _generate_sample_indices(random_state, n_samples)
         sample_counts = bincount(indices, minlength=n_samples)
@@ -70,11 +101,59 @@ class PertubationSampler(object):
         return curr_sample_weight
 
     def pertube_loss_function(self, X, random_state, multipler, function=None):
+        """calculate add-on value of X so as to pertube loss function value. It is
+        calculated as:
+
+            η * g(X)
+        
+        Parameters
+        ----------
+        X : array-like of shape = [n_samples, n_features]
+            The training input samples.
+
+        random_state: numpy.random.RandomState
+        
+        multipler: float. η in the equation
+
+        function: python function with X as input and return array-like of shape = [n_samples].
+            g() in the equation. If None, a random function will be provided.
+
+        Returns
+        -------
+        add-on value: numpy array, shape = [n_samples]
+
+        """
         if not function:
             function = self._random_function(random_state)
         return function(X) * multipler
         
     def sample_X_y(self, X, y, frac=1.0, replace=True, return_index=False):
+        """sample X and y
+        
+        Parameters
+        ----------
+        X : array-like of shape = [n_samples, n_features]
+            The training input samples.
+
+        y : array-like of shape = [n_samples]
+            the training response
+
+        frac: float. Fraction of n_samples to be sampled
+        
+        replace: bool. If true, apply sampling with replacement 
+
+        return_index: bool. If true, return sample index as 
+            array-like of shape = [n_samples * frac]
+
+        Returns
+        -------
+        X_sample: array-like of shape = [n_samples * frac, n_features]
+        
+        y_sample: array-like of shape = [n_samples * frac]
+
+        sample_index: array-like of shape = [n_samples * frac]. Return if return_index = True
+
+        """        
         X, y = check_X_y(X, y)
         n_population = X.shape[0]
         idx = np.random.choice(n_population, n_population*frac, replace=replace)
@@ -83,6 +162,30 @@ class PertubationSampler(object):
         return X[idx], y[idx]
 
     def sample_features(self, X, mode='auto', return_index=False):
+        """sample features of X
+        
+        Parameters
+        ----------
+        X : array-like of shape = [n_samples, n_features]
+            The training input samples.
+
+        mode : string. The number of features to consider when looking for the best split:
+            - If "auto", then `max_features=sqrt(n_features)`.
+            - If "sqrt", then `max_features=sqrt(n_features)`.
+            - If "log2", then `max_features=log2(n_features)`.
+            - If None, then `max_features=n_features`.
+
+        return_index: bool. If true, return sample index as 
+            array-like of shape = [n_features * frac]
+
+        Returns
+        -------
+        X_sample: array-like of shape = [n_samples, n_features * frac]
+        
+        sample_feature_index: array-like of shape = [n_features * frac]. Return if return_index = True
+
+        """     
+
         X = check_array(X)
         n_features = X.shape[1]
         if mode in ['auto', 'sqrt']:
@@ -97,6 +200,24 @@ class PertubationSampler(object):
         return X[:, idx]
 
     def sample_array(self, X, random_state=None, sample_weight=None):
+        """apply boostrapping on X
+        
+        Parameters
+        ----------
+        X : array-like of shape = [n_samples, n_features]
+            The training input samples.
+
+        random_state: numpy.random.RandomState
+
+        sample_weight: array-like of shape = [n_samples].
+            probability of X to be chosen in boostrap process.
+
+        Returns
+        -------
+        bootstrap_idx: array-like of shape = [n_samples].
+            array index generated by bootstrapping.
+
+        """  
         if random_state is None:
             random_state = check_random_state(random_state)
 
@@ -112,7 +233,11 @@ class PertubationSampler(object):
         return bootstrap_idx
         
 class ISLEBaseEnsemble(BaseEstimator):
-    """docstring for ISLEBaseEnsemble"""
+    """Base class for ISLE (Importance Sampled Learning Ensembles)
+    
+    Warning: This class should not be used directly. Use derived classes
+    instead.
+    """
     def __init__(self,  
                  base_estimator, 
                  alpha = 0.1,
@@ -137,12 +262,28 @@ class ISLEBaseEnsemble(BaseEstimator):
         self.bootstrap = bootstrap
         self.learning_rate = learning_rate
         self.sample_weight = None
-        self.classses_ = 0
 
         self.estimators_ = []
 
     def fit(self, X, y):
-        # check input
+        """Build a ensemble from the training set (X, y).
+
+        Parameters
+        ----------
+        X : array-like or sparse matrix of shape = [n_samples, n_features]
+            The training input samples. Internally, its dtype will be converted to
+            ``dtype=np.float32``. If a sparse matrix is provided, it will be
+            converted into a sparse ``csc_matrix``.
+
+        y : array-like, shape = [n_samples] or [n_samples, n_outputs]
+            The target values (class labels in classification, real numbers in
+            regression).
+
+        Returns
+        -------
+        self : object
+            Returns self.
+        """
 
         X, y = check_X_y(X, y, dtype=DTYPE)
         y = self._validate_y_class(y)
@@ -194,6 +335,8 @@ class ISLEBaseEnsemble(BaseEstimator):
         return self._post_process(X, y)
 
     def init_stage(self):
+        """init fitting process. Estimators will be cleared."""
+
         self.estimators_ = []
 
     def _make_estimator(self, append=True, random_state=None):
@@ -240,10 +383,15 @@ class ISLEBaseEnsemble(BaseEstimator):
         pass
   
     def _validate_y_class(self, y):
+        # Default implementation
         return y
 
 class ISLEBaseEnsembleRegressor(ISLEBaseEnsemble):
-    """docstring for ISLEBaseEnsembleRegressor"""
+    """Base class for ISLE (Importance Sampled Learning Ensembles) Regressors
+    
+    Warning: This class should not be used directly. Use derived classes
+    instead.
+    """
     def __init__(self,  
                  base_estimator, 
                  alpha = 0.1,
@@ -266,6 +414,28 @@ class ISLEBaseEnsembleRegressor(ISLEBaseEnsemble):
             learning_rate=learning_rate)
 
     def _post_process(self, X, y, check_input=False):
+        """post-process ensemble by Lasso method so as to gain a more parsimonious model.
+
+        Parameters
+        ----------
+        X : array-like or sparse matrix of shape = [n_samples, n_features]
+            The training input samples. Internally, its dtype will be converted to
+            ``dtype=np.float32``. If a sparse matrix is provided, it will be
+            converted into a sparse ``csc_matrix``.
+
+        y : array-like, shape = [n_samples] or [n_samples, n_outputs]
+            The target values (class labels in classification, real numbers in
+            regression).
+
+        check_input : boolean, (default=True)
+            Allow to bypass several input checking.
+
+        Returns
+        -------
+        self : object
+            Returns self.
+
+        """
         if check_input:
             X, y = check_X_y(X, y)
 
@@ -283,6 +453,24 @@ class ISLEBaseEnsembleRegressor(ISLEBaseEnsemble):
         return self
 
     def predict(self, X):
+        """Predict regression value for X.
+
+        Parameters
+        ----------
+        X : array-like or sparse matrix of shape = [n_samples, n_features]
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32`` and if a sparse matrix is provided
+            to a sparse ``csr_matrix``.
+
+        check_input : boolean, (default=True)
+            Allow to bypass several input checking.
+
+        Returns
+        -------
+        y : array of shape = [n_samples] or [n_samples, n_outputs]
+            The predicted values.
+        """
+
         X = check_array(X)
 
         y_hat = np.zeros((X.shape[0],))
@@ -293,10 +481,31 @@ class ISLEBaseEnsembleRegressor(ISLEBaseEnsemble):
         return y_hat + self.intercept_
 
     def _tree_predict(self, estimator_id, X):
+        """Predict regression value for X by a estimator in the ensemble.
+
+        Parameters
+        ----------
+        estimator_id : integer
+            the ith estimator of ensemble self.estimators_
+
+        X : array-like or sparse matrix of shape = [n_samples, n_features]
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32`` and if a sparse matrix is provided
+            to a sparse ``csr_matrix``.
+
+        Returns
+        -------
+        y : array of shape = [n_samples] or [n_samples, n_outputs]
+            The predicted values.
+        """
         return self.estimators_[estimator_id].predict(X) * self.learning_rate
 
 class ISLEBaseEnsembleClassifier(ISLEBaseEnsemble):
-    """docstring for ISLEBaseEnsembleClassifier"""
+    """Base class for ISLE (Importance Sampled Learning Ensembles) Regressors
+    
+    Warning: This class should not be used directly. Use derived classes
+    instead.
+    """
     def __init__(self,  
                  base_estimator, 
                  alpha = 0.1,
@@ -321,6 +530,28 @@ class ISLEBaseEnsembleClassifier(ISLEBaseEnsemble):
         self.classes_ = None
 
     def _post_process(self, X, y, check_input=False):
+        """post-process ensemble by Lasso method so as to gain a more parsimonious model.
+
+        Parameters
+        ----------
+        X : array-like or sparse matrix of shape = [n_samples, n_features]
+            The training input samples. Internally, its dtype will be converted to
+            ``dtype=np.float32``. If a sparse matrix is provided, it will be
+            converted into a sparse ``csc_matrix``.
+
+        y : array-like, shape = [n_samples] or [n_samples, n_outputs]
+            The target values (class labels in classification, real numbers in
+            regression).
+
+        check_input : boolean, (default=True)
+            Allow to bypass several input checking.
+
+        Returns
+        -------
+        self : object
+            Returns self.
+
+        """
         if check_input:
             X, y = check_X_y(X, y)
 
@@ -346,12 +577,52 @@ class ISLEBaseEnsembleClassifier(ISLEBaseEnsemble):
 
         return self
 
-    def predict(self, X):
-        X = check_array(X)
+    def predict(self, X, check_input=True):
+        """Predict class for X.
+
+        Parameters
+        ----------
+        X : array-like or sparse matrix of shape = [n_samples, n_features]
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32`` and if a sparse matrix is provided
+            to a sparse ``csr_matrix``.
+
+        check_input : boolean, (default=True)
+            Allow to bypass several input checking.
+
+        Returns
+        -------
+        y : array of shape = [n_samples] or [n_samples, n_outputs]
+            The predicted values.
+        """
+        if check_input:
+            X = check_array(X)
         proba = self.predict_proba(X)
         return self.classes_.take(np.argmax(proba, axis=1), axis=0) 
 
     def predict_proba(self, X):
+         """Predict class probabilities for X.
+
+        The predicted class probabilities of an input sample are computed as
+        the mean predicted class probabilities of the trees in the ensemble. The
+        class probability of a single tree is the fraction of samples of the same
+        class in a leaf.
+        
+        Parameters
+        ----------
+        X : array-like or sparse matrix of shape = [n_samples, n_features]
+            The input samples. Internally, its dtype will be converted to
+            ``dtype=np.float32``. If a sparse matrix is provided, it will be
+            converted into a sparse ``csr_matrix``.
+
+        Returns
+        -------
+        p : array of shape = [n_samples, n_classes], or a list of n_outputs
+            such arrays if n_outputs > 1.
+            The class probabilities of the input samples. The order of the
+            classes corresponds to that in the attribute `classes_`.
+        """
+
         X = check_array(X)
         proba = np.zeros((X.shape[0], self.n_classes_))
         for i in xrange(self.n_estimators):
@@ -366,4 +637,23 @@ class ISLEBaseEnsembleClassifier(ISLEBaseEnsemble):
         return y
 
     def _tree_predict_proba(self, estimator_id, X):
+        """Predict class probabilities for X by a estimator in the ensemble.
+
+        Parameters
+        ----------
+        estimator_id : integer
+            the ith estimator of ensemble self.estimators_
+
+        X : array-like or sparse matrix of shape = [n_samples, n_features]
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32`` and if a sparse matrix is provided
+            to a sparse ``csr_matrix``.
+
+        Returns
+        -------
+        p : array of shape = [n_samples, n_classes], or a list of n_outputs
+            such arrays if n_outputs > 1.
+            The class probabilities of the input samples. The order of the
+            classes corresponds to that in the attribute `classes_`.
+        """
         return self.estimators_[estimator_id].predict_proba(X) * self.learning_rate
