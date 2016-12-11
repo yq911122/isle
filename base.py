@@ -27,6 +27,7 @@ def _set_random_states(estimator, random_state=None):
     """Sets fixed random_state parameters for an estimator
     Finds all parameters ending ``random_state`` and sets them to integers
     derived from ``random_state``.
+    
     Parameters
     ----------
     estimator : estimator supporting get/set_params
@@ -601,7 +602,7 @@ class ISLEBaseEnsembleClassifier(ISLEBaseEnsemble):
         return self.classes_.take(np.argmax(proba, axis=1), axis=0) 
 
     def predict_proba(self, X):
-         """Predict class probabilities for X.
+        """Predict class probabilities for X.
 
         The predicted class probabilities of an input sample are computed as
         the mean predicted class probabilities of the trees in the ensemble. The
