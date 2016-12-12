@@ -88,4 +88,3 @@ def test_GradientBoostingClassifier():
     print cv.cross_validation(clf, X, y, scoring='accuracy')
     print cv.cross_validation(clf2, X, y, scoring='accuracy')
 
-test_GradientBoostingClassifier()
