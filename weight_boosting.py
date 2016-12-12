@@ -46,6 +46,9 @@ class AdaBoostRegressor(ISLEBaseEnsembleRegressor):
     estimators_ : list of classifiers
         The collection of fitted sub-estimators.
 
+    feature_importances_ : array of shape = [n_features]
+        The feature importances if supported by the ``base_estimator``.
+
     References
     ----------
     .. [1] H. Drucker, "Improving Regressors using Boosting Techniques", 1997.
@@ -179,6 +182,9 @@ class AdaBoostClassifier(ISLEBaseEnsembleClassifier):
     
     n_classes_ : int
         The number of classes.
+
+    feature_importances_ : array of shape = [n_features]
+        The feature importances if supported by the ``base_estimator``.
 
     References
     ----------

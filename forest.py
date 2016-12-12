@@ -120,6 +120,9 @@ class RandomForestRegressor(ISLEBaseEnsembleRegressor):
         The number of classes (single output problem), or a list containing the
         number of classes for each output (multi-output problem).
 
+    feature_importances_ : array of shape = [n_features]
+        The feature importances (the higher, the more important the feature).
+
     References
     ----------
     .. [1] L. Breiman, "Random Forests", Machine Learning, 45(1), 5-32, 2001.
@@ -328,6 +331,9 @@ class RandomForestClassifier(ISLEBaseEnsembleClassifier):
     n_classes_ : int or list
         The number of classes (single output problem), or a list containing the
         number of classes for each output (multi-output problem).
+
+    feature_importances_ : array of shape = [n_features]
+        The feature importances (the higher, the more important the feature).
 
     References
     ----------

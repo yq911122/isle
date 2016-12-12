@@ -154,6 +154,9 @@ class GradientBoostingRegressor(ISLEBaseEnsembleRegressor):
     estimators_ : ndarray of DecisionTreeRegressor, shape = [n_estimators, 1]
         The collection of fitted sub-estimators.
 
+    feature_importances_ : array of shape = [n_features]
+        The feature importances (the higher, the more important the feature).
+
     """
     def __init__(self, 
                  loss='ls',
@@ -378,6 +381,9 @@ class GradientBoostingClassifier(ISLEBaseEnsembleClassifier):
         The number of classes (single output problem), or a list containing the
         number of classes for each output (multi-output problem).
 
+    feature_importances_ : array of shape = [n_features]
+        The feature importances (the higher, the more important the feature).
+
     """
     
     _SUPPORTED_LOSS = ('deviance', 'exponential')
@@ -536,3 +542,24 @@ class GradientBoostingClassifier(ISLEBaseEnsembleClassifier):
                 score[:, i] = estimators[i].predict(X) * self.learning_rate
         # print score[:1,:]
         return self.loss_._score_to_proba(score)
+
+    @property
+    def feature_importances_(self):
+        """Return the feature importances (the higher, the more important the
+           feature).
+        Returns
+        -------
+        feature_importances_ : array, shape = [n_features]
+        """
+        if self.estimators_ is None or len(self.estimators_) == 0:
+            raise Error("Estimator not fitted, "
+                        "call `fit` before `feature_importances_`.")
+
+        total_sum = np.zeros((self.n_features, ), dtype=np.float64)
+        for estimators, coefs in zip(self.estimators_, self.coef_):
+            stage_sum = sum(tree.feature_importances_ * coef
+                            for tree, coef in zip(estimators, coefs)) / len(estimators)
+            total_sum += stage_sum
+
+        importances = total_sum / np.sum(importances)
+        return importances

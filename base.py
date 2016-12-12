@@ -76,9 +76,9 @@ class PertubationSampler(object):
         return random_state.rand
     
     def pertube_distribution_weight(self, random_state, n_samples, multipler):
-        """generate sample weights [w_m(z)]^η so as to modify the sample distribution.
+        """generate sample weights [w_m(z)]^r so as to modify the sample distribution.
 
-                q_m(z) = q(z) * [w_m(z)]^η
+                q_m(z) = q(z) * [w_m(z)]^r
         
         Parameters
         ----------
@@ -88,7 +88,7 @@ class PertubationSampler(object):
                    Number of sample weights that will be generated
         
         multipler: float. 
-                   η in the equation
+                   r in the equation
 
         Returns
         -------
@@ -105,7 +105,7 @@ class PertubationSampler(object):
         """calculate add-on value of X so as to pertube loss function value. It is
         calculated as:
 
-            η * g(X)
+            r * g(X)
         
         Parameters
         ----------
@@ -114,7 +114,7 @@ class PertubationSampler(object):
 
         random_state: numpy.random.RandomState
         
-        multipler: float. η in the equation
+        multipler: float. r in the equation
 
         function: python function with X as input and return array-like of shape = [n_samples].
             g() in the equation. If None, a random function will be provided.
@@ -377,8 +377,8 @@ class ISLEBaseEnsemble(BaseEstimator):
         if self.base_estimator_ is None:
             raise ValueError("base_estimator cannot be None")
 
-    def _pertube_sampling(self, X, y):
-        pass
+    # def _pertube_sampling(self, X, y):
+    #     pass
 
     def _build_base_estimators(self, estimator, X, y):
         pass
@@ -500,6 +500,24 @@ class ISLEBaseEnsembleRegressor(ISLEBaseEnsemble):
             The predicted values.
         """
         return self.estimators_[estimator_id].predict(X) * self.learning_rate
+
+    @property
+    def feature_importances_(self):
+        """Return the feature importances (the higher, the more important the
+           feature).
+        Returns
+        -------
+        feature_importances_ : array, shape = [n_features]
+        """
+        if self.estimators_ is None or len(self.estimators_) == 0:
+            raise Error("Estimator not fitted, "
+                        "call `fit` before `feature_importances_`.")
+
+        all_importances = self.estimators_[0].feature_importances_ * self.coef_[0]
+        for i in xrange(1, len(self.estimators_)):
+            all_importances += self.estimators_[i].feature_importances_ * self.coef_[i]
+
+        return all_importances / np.sum(all_importances)
 
 class ISLEBaseEnsembleClassifier(ISLEBaseEnsemble):
     """Base class for ISLE (Importance Sampled Learning Ensembles) Regressors
@@ -658,3 +676,21 @@ class ISLEBaseEnsembleClassifier(ISLEBaseEnsemble):
             classes corresponds to that in the attribute `classes_`.
         """
         return self.estimators_[estimator_id].predict_proba(X) * self.learning_rate
+
+    @property
+    def feature_importances_(self):
+        """Return the feature importances (the higher, the more important the
+           feature).
+        Returns
+        -------
+        feature_importances_ : array, shape = [n_features]
+        """
+        if self.estimators_ is None or len(self.estimators_) == 0:
+            raise Error("Estimator not fitted, "
+                        "call `fit` before `feature_importances_`.")
+
+        all_importances = self.estimators_[0].feature_importances_ * np.sum(self.coef_[0])
+        for estimator in self.estimators_[1:]:
+            all_importances += self.estimators_[i].feature_importances_ * np.sum(self.coef_[i])
+
+        return all_importances / len(self.estimators_)
